@@ -28,7 +28,7 @@ class TestAPICouriers(TestCase):
                 "courier_id": 3,
                 "courier_type": "foot",
                 "regions": [2, 14, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                "working_hours": ["09:00-14:00", "19:00-23:00"]
             },
         ]}
 
@@ -58,6 +58,7 @@ class TestAPICouriers(TestCase):
                                data=json.dumps(correct_payload),
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'couriers': [{'id': 3}, {'id': 4}]}, response.data)
 
     def test_post_couriers_incorrect_courier_type(self):
         """
@@ -263,6 +264,13 @@ class TestAPICouriers(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_courier = Courier.objects.get(pk=3)
         self.assertNotEqual(old_courier.regions, new_courier.regions)
+        expected_response_data = {
+            'courier_id': 3,
+            'courier_type': 'foot',
+            'regions': ['2'],
+            'working_hours': ['09:00-14:00', '19:00-23:00']
+        }
+        self.assertEqual(expected_response_data, response.data)
 
     def test_patch_working_hours_correct(self):
         """
@@ -329,4 +337,210 @@ class TestAPICouriers(TestCase):
         response = client.patch('/api/v1/couriers/3/',
                                 data=json.dumps(incorrect_edit_payload),
                                 content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_change_courier_type(self):
+        client = TestAPICouriers.guest_client
+        # Создаем курьера, которого будем редактировать
+        correct_payload = TestAPICouriers.correct_post_courier_payload
+        response = client.post('/api/v1/couriers/',
+                               data=json.dumps(correct_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # TODO: назначаем заказы
+
+        # меняем время доставки так, чтобы
+        # они не укладывались в новые рабочие часы
+
+    def test_patch_change_region(self):
+        client = TestAPICouriers.guest_client
+        # Создаем курьера, которого будем редактировать
+        correct_payload = TestAPICouriers.correct_post_courier_payload
+        response = client.post('/api/v1/couriers/',
+                               data=json.dumps(correct_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # TODO: назначаем заказы
+
+        # меняем регионы так, чтобы они не обслуживались курьером
+
+
+class TestAPIOrders(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.guest_client = Client()
+        cls.correct_post_order_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": 12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+        ]}
+
+    def test_post_orders_correct(self):
+        """
+        Проверка успешного запроса на добавление заказов.
+        Должен вернуть HTTP_201_CREATED
+        :return:
+        """
+        client = TestAPIOrders.guest_client
+        correct_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": 12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 2,
+                "weight": 15,
+                "region": 1,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(correct_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
+
+    def test_post_orders_incorrect_weight(self):
+        """
+            Проверка запроса с пустым/некорректным weight.
+            Должен вернуть HTTP_400_BAD_REQUEST
+            :return:
+            """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 99,
+                "region": 12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 2,
+                "weight": -15,
+                "region": 1,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 3,
+                "weight": None,
+                "region": 1,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_incorrect_region(self):
+        """
+        Проверка запроса с пустым и/или некорректным region.
+        Должен вернуть HTTP_400_BAD_REQUEST
+        :return:
+        """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": -12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 2,
+                "weight": 15,
+                "region": 1.4,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_incorrect_delivery_hours(self):
+        """
+        Проверка запроса с пустым и/или некорректным delivery_hours.
+        Должен вернуть HTTP_400_BAD_REQUEST
+        :return:
+        """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": 12,
+                "delivery_hours": ["0900-18:00"]
+            },
+            {
+                "order_id": 2,
+                "weight": 15,
+                "region": 1,
+                "delivery_hours": []
+            }
+        ]}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_empty(self):
+        """
+        Проверка пустого запроса. Должен вернуть HTTP_400_BAD_REQUEST
+        :return:
+        """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": []}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_empty_item(self):
+        """
+        Проверка непустого запроса. Но у одного из заказов нет полей.
+        Должен вернуть HTTP_400_BAD_REQUEST
+        :return:
+        """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": 12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {}
+        ]}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_orders_incorrect_extra_field_in(self):
+        """
+            Проверка запроса с несуществующими полями.
+            Должен вернуть HTTP_400_BAD_REQUEST
+            :return:
+            """
+        client = TestAPICouriers.guest_client
+        incorrect_payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "sleep": 5,
+                "region": 12,
+                "delivery_hours": ["09:00-18:00"]
+            },
+        ]}
+        response = client.post('/api/v1/orders/',
+                               data=json.dumps(incorrect_payload),
+                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

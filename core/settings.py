@@ -83,7 +83,8 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
+        'DISABLE_SERVER_SIDE_CURSORS': True,
+        'NAME': 'postgres1',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': 5432

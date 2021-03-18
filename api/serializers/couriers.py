@@ -51,13 +51,14 @@ class CourierSerializer(serializers.ModelSerializer):
         return working_hours
 
     def to_internal_value(self, data):
-        extra_field_in_request = any([field not in self.fields for field in data])
+        extra_field_in_request = any(
+            [field not in self.fields for field in data])
         if extra_field_in_request:
-            raise ValidationError({"validation_error": 'extra fields in request'})
+            raise ValidationError(
+                {"validation_error": 'extra fields in request'})
         if len(data) == 0:
             raise ValidationError('empty request')
         return super(CourierSerializer, self).to_internal_value(data)
-
 
 
 class CourierListSerializer(serializers.Serializer):
