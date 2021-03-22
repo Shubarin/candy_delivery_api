@@ -4,26 +4,22 @@ from rest_framework.response import Response
 
 from api.models import Courier
 from api.serializers.couriers import CourierListSerializer, CourierSerializer
+from api.utils import get_rating, get_earning
 
 
-class CouriersViewSet(viewsets.ModelViewSet):
-    queryset = Courier.objects.all()
-    serializer_class = CourierListSerializer
-
+class CouriersViewSet(viewsets.ViewSet):
     def create(self, request, *args, **kwargs):
         serializer = CourierListSerializer(data=request.data)
-        ids = [item.get('courier_id') for item in request.data['data']]
-
         if serializer.is_valid():
             serializer.save()
-            message = {'couriers': [{'id': id} for id in ids]}
-            return Response(message, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+        ids = [item.get('courier_id') for item in request.data['data']]
         errors_list = serializer.errors['data']
-        errors_id = [{'id': id, 'detail': e}
+        errors_ids = [{'id': id, 'detail': e}
                      for id, e in zip(ids, errors_list) if e]
-        message = {'validation_error': {'couriers': errors_id}}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+        data = {'validation_error': {'couriers': errors_ids}}
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, *args, **kwargs):
         courier = get_object_or_404(Courier, pk=self.kwargs.get('pk'))
@@ -32,3 +28,17 @@ class CouriersViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, *args, **kwargs):
+        courier = get_object_or_404(Courier, pk=self.kwargs.get('pk'))
+        serializer = CourierSerializer(courier)
+        data = serializer.to_representation(courier)
+
+        rating = get_rating(courier)
+        if rating:
+            data['rating'] = rating
+        earning = get_earning(courier)
+        if earning:
+            data['earning'] = earning
+
+        return Response(data, status=status.HTTP_200_OK)

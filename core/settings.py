@@ -84,7 +84,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'DISABLE_SERVER_SIDE_CURSORS': True,
-        'NAME': 'postgres1',
+        'NAME': 'postgres2',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': 5432
@@ -120,7 +120,7 @@ USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+USE_TZ = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/

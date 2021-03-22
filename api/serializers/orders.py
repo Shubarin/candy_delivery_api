@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
 
-from api.models import Order
+from api.models import Order, Courier
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -57,13 +57,29 @@ class OrderSerializer(serializers.ModelSerializer):
         if len(data) == 0:
             raise ValidationError('empty request')
         return super(OrderSerializer, self).to_internal_value(data)
+    
+    def update(self, instance, validated_data):
+        complete_time = self.context.get('complete_time')
+        courier_id = self.context.get('courier_id')
+        courier = Courier.objects.get(courier_id=courier_id)
+        # TODO: сравнить время начало и время завершения заказа
+        # format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        # date = datetime.datetime.strptime(complete_time, format_datetime)
+        # if instance.assign_time >= datetime.datetime.astimezone(date):
+        #     raise ValidationError('invalid complete time')
+        instance.complete_time = complete_time
+        instance.assign_courier = courier
+        instance.is_complete = True
+        # courier.allowed_orders_weight += instance.weight
+        # courier.save()
+        return super(OrderSerializer, self).update(instance, validated_data)
 
 
 class OrderListSerializer(serializers.Serializer):
     data = OrderSerializer(required=False, many=True, write_only=True)
 
     def create(self, validated_data):
-        data = validated_data['data']
+        data = validated_data.get('data')
         if not data:
             raise ValidationError({'validation_error': 'empty request'})
 

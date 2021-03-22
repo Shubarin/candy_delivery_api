@@ -1,5 +1,4 @@
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -30,8 +29,5 @@ class Courier(models.Model):
         }
         return units.get(key, 0)
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        self.allowed_orders_weight = Courier.get_max_weight(self.courier_type)
-        return super(Courier, self).save(force_insert, force_update,
-                                         using, update_fields)
+    def can_take_weight(self, order):
+        return self.allowed_orders_weight >= order.weight
