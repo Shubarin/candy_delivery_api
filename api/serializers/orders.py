@@ -1,5 +1,6 @@
 import datetime
 
+import pytz
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
@@ -62,16 +63,20 @@ class OrderSerializer(serializers.ModelSerializer):
         complete_time = self.context.get('complete_time')
         courier_id = self.context.get('courier_id')
         courier = Courier.objects.get(courier_id=courier_id)
-        # TODO: сравнить время начало и время завершения заказа
-        # format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
-        # date = datetime.datetime.strptime(complete_time, format_datetime)
-        # if instance.assign_time >= datetime.datetime.astimezone(date):
-        #     raise ValidationError('invalid complete time')
+
+        utc=pytz.UTC
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        date = datetime.datetime.strptime(complete_time, format_datetime)
+        asign_date = utc.localize(instance.assign_time)
+        if asign_date >= date:
+            raise ValidationError('invalid complete time')
+
         instance.complete_time = complete_time
         instance.assign_courier = courier
         instance.is_complete = True
+        # TODO: вернуть курьеру доступный вес
         # courier.allowed_orders_weight += instance.weight
-        # courier.save()
+        # courier.update(update_fields=['allowed_orders_weight'])
         return super(OrderSerializer, self).update(instance, validated_data)
 
 
@@ -85,3 +90,7 @@ class OrderListSerializer(serializers.Serializer):
 
         orders = [Order(**item) for item in data]
         return Order.objects.bulk_create(orders)
+    
+    def to_representation(self, instance):
+        data = {'orders': [{'id': order.pk} for order in instance]}
+        return data

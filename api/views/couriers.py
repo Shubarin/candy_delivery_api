@@ -13,7 +13,7 @@ class CouriersViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
+        # Добавляем подробную информацию об ошибках валидации
         ids = [item.get('courier_id') for item in request.data['data']]
         errors_list = serializer.errors['data']
         errors_ids = [{'id': id, 'detail': e}
