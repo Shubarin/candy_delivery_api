@@ -44,9 +44,14 @@ class CourierSerializer(serializers.ModelSerializer):
     def validate_working_hours(working_hours):
         for period in working_hours:
             try:
+                # Проверяем что конец позже начала, т.к. рабочие часы
+                # формируются максимум на одни сутки
                 start, end = period.split('-')
                 start = datetime.datetime.strptime(start, "%H:%M")
                 end = datetime.datetime.strptime(end, "%H:%M")
+                interval = end - start
+                if interval.days >= 1 or interval.days < 0:
+                    raise ValueError
             except ValueError:
                 raise ValidationError('invalid values in working_hours list')
         return working_hours

@@ -572,7 +572,7 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьеров
-        payload = TestAPICouriers.data_courier_3_foot_4_bike
+        payload = self.data_courier_3_foot_4_bike
         payload["data"].append(
             {
                 "courier_id": 5,
@@ -750,7 +750,7 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
-        # 4 курьер должен был получить только заказ id=1
+        # 4 курьер должен был получить только заказ id=2
         response = self.request_post_orders_assign({"courier_id": 4})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}])
@@ -760,6 +760,56 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [])
         self.assertNotIn('assign_time', response.data)
+
+    def test_assign_to_cancel_order(self):
+        """Отмененный заказ доступен для других курьеров"""
+        # Создаем группу заказов
+        payload = TestAPIOrders.orders_1_2_test
+        response = self.request_post_orders(payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
+
+        # Создаем курьеров
+        payload = {"data": [
+            {
+                "courier_id": 3,
+                "courier_type": "foot",
+                "regions": [2, 22, 24],
+                "working_hours": ["11:00-14:00", "09:00-10:00"]
+            },
+            {
+                "courier_id": 4,
+                "courier_type": "bike",
+                "regions": [22],
+                "working_hours": ["09:00-18:00"]
+            },
+            {
+                "courier_id": 5,
+                "courier_type": "car",
+                "regions": [2, 14, 22, 24],
+                "working_hours": ["00:00-21:00"]
+            }
+        ]}
+        response = self.request_post_couriers(payload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'couriers': [{'id': 3}, {'id': 4}, {'id': 5}]},
+                         response.data)
+
+        # назначаем заказы
+        # 3 курьер должен был получить только заказ id=1
+        response = self.request_post_orders_assign({"courier_id": 3})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['orders'], [{'id': 1}])
+
+        # Отменяем заказ id=1
+        order = Order.objects.get(pk=1)
+        order.cancel_assign()
+
+        # 5 курьер должен был получить заказы id=1, 2
+        response = self.request_post_orders_assign({"courier_id": 5})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['orders'], [{'id': 2}, {'id': 1}])
 
     def test_post_orders_complete_incorrect_order_id(self):
         """Некорректное завершение, заказ не существует"""
@@ -891,12 +941,21 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
 
         # Назначаем заказы
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # завершаем заказы в прошлом веке
-        correct_payload = TestAPIOrders.complete_data
-        correct_payload["complete_time"] = "1900-01-10T10:33:01.42Z"
-        response = self.request_post_orders_complete(correct_payload)
+        payload = TestAPIOrders.complete_data
+        payload['complete_time'] = '1900-01-10T10:33:01.42Z'
+        response = self.request_post_orders_complete(payload)
         self.assertEqual(response.status_code, 400)
+
+        payload_without_time = {'courier_id': 3,
+                                'order_id': payload['order_id']}
+        response = self.request_post_orders_complete(payload_without_time)
+        self.assertEqual(response.status_code, 400)
+
+        response = self.request_post_orders_complete({})
+        self.assertEqual(response.status_code, 400)
+

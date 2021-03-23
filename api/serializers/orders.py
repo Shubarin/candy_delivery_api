@@ -25,16 +25,13 @@ class OrderSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_weight(weight):
-        if 50 >= weight >= 0.01:
-            return weight
-        raise ValidationError('invalid value courier_type')
+        if weight * 100 < 1 or weight > 50:
+            raise ValidationError('Serializer error invalid value weight')
+        return weight
 
     @staticmethod
     def validate_region(region):
-        try:
-            if int(region) < 1:
-                raise ValueError
-        except ValueError:
+        if region < 1:
             raise ValidationError('invalid value in region')
         return region
 
@@ -42,6 +39,8 @@ class OrderSerializer(serializers.ModelSerializer):
     def validate_delivery_hours(delivery_hours):
         for period in delivery_hours:
             try:
+                # Не проверяем что конец позже начала,
+                # т.к. заказ могут ждать ночью с 23:00-02:00
                 start, end = period.split('-')
                 start = datetime.datetime.strptime(start, "%H:%M")
                 end = datetime.datetime.strptime(end, "%H:%M")

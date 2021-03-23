@@ -5,6 +5,20 @@ from django.test import Client
 
 class MixinAPI:
     client = Client()
+    data_courier_3_foot_4_bike = {"data": [
+        {
+            "courier_id": 3,
+            "courier_type": "foot",
+            "regions": [2, 14, 24],
+            "working_hours": ["11:36-14:06", "09:06-11:06"]
+        },
+        {
+            "courier_id": 4,
+            "courier_type": "bike",
+            "regions": [22],
+            "working_hours": ["09:00-18:00"]
+        }
+    ]}
 
     @staticmethod
     def request_post_couriers(payload):

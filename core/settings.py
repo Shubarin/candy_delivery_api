@@ -84,7 +84,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'DISABLE_SERVER_SIDE_CURSORS': True,
-        'NAME': 'postgres2',
+        'NAME': 'postgres1',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': 5432

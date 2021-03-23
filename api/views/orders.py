@@ -32,15 +32,18 @@ class OrdersViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['POST'])
     def complete(self, request):
-        complete_time = request.data.pop('complete_time')
-        courier_id = request.data.pop('courier_id')
-        order_id = request.data.get('order_id')
-        order = Order.objects.filter(
-            order_id=order_id,
-            assign_courier__pk=courier_id,
-            allow_to_assign=False
-        ).first()
-        if not order:
+        try:
+            complete_time = request.data.pop('complete_time')
+            courier_id = request.data.pop('courier_id')
+            order_id = request.data.get('order_id')
+            order = Order.objects.filter(
+                order_id=order_id,
+                assign_courier__pk=courier_id,
+                allow_to_assign=False
+            ).first()
+            if not order:
+                raise ValueError
+        except Exception:
             return Response({"validation_error": 'bad request'},
                             status=status.HTTP_400_BAD_REQUEST)
         serializer = OrderSerializer(data=request.data,
