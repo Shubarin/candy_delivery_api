@@ -1,4 +1,4 @@
-import json
+import datetime
 
 from django.shortcuts import get_object_or_404
 from django.test import TestCase, Client
@@ -45,6 +45,20 @@ class TestAPICouriers(TestCase, MixinAPI):
                 "courier_type": "bike",
                 "regions": [22],
                 "working_hours": ["09:00-18:00"]
+            }
+        ]}
+        cls.orders_correct = {"data": [
+            {
+                "order_id": 101,
+                "weight": 0.23,
+                "region": 2,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 102,
+                "weight": 1,
+                "region": 2,
+                "delivery_hours": ["09:00-18:00"]
             }
         ]}
 
@@ -227,6 +241,28 @@ class TestAPICouriers(TestCase, MixinAPI):
         }
         self.assertEqual(expected_response_data, response.data)
 
+    def test_patch_regions_after_assign_orders_with_delete_order(self):
+        """Назначается развоз, курьер меняет свой тип,
+        из развоза удаляется заказ
+        """
+        # Создаем курьера, которого будем редактировать
+        payload = TestAPICouriers.correct_post_courier_payload
+        response = self.request_post_couriers(payload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        old_courier = Courier.objects.get(pk=3)
+        response = self.request_patch_courier({"regions": [2]}, 3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        new_courier = Courier.objects.get(pk=3)
+        self.assertNotEqual(old_courier.regions, new_courier.regions)
+        expected_response_data = {
+            'courier_id': 3,
+            'courier_type': 'bike',
+            'regions': ['2'],
+            'working_hours': ['09:00-14:00', '19:00-23:00']
+        }
+        self.assertEqual(expected_response_data, response.data)
+
     def test_patch_working_hours_correct(self):
         """
         Проверка успешного запроса на редактирование списка часов работы.
@@ -306,8 +342,6 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Проверяем доступность первого заказа для других курьеров
         courier = get_object_or_404(Courier, pk=3)
-        assign = courier.assign.filter(orders__pk=1)
-        # TODO: удалить заказ из назначения
         order = get_object_or_404(Order, pk=1)
         self.assertTrue(order.allow_to_assign)
         self.assertIsNone(order.assign_courier)
@@ -317,6 +351,10 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(courier, order.assign_courier)
 
     def test_patch_change_working_hours(self):
+        """
+        Назначается развоз, курьер меняет свои часы работы,
+        из развоза удаляется заказ, который больше не подходит курьеру
+        """
         # Создаем курьера, которого будем редактировать
         payload = TestAPICouriers.correct_post_courier_payload
         response = self.request_post_couriers(payload)
@@ -351,8 +389,6 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Проверяем доступность первого заказа для других курьеров
         courier = get_object_or_404(Courier, pk=1)
-        assign = courier.assign.filter(orders__pk=1)
-        # TODO: удалить заказ из назначения
         order = get_object_or_404(Order, pk=1)
         self.assertTrue(order.allow_to_assign)
         self.assertIsNone(order.assign_courier)
@@ -361,21 +397,38 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertFalse(order.allow_to_assign)
         self.assertEqual(courier, order.assign_courier)
 
+        edit_payload = {'working_hours': ['21:00-23:00']}
+        response = self.request_patch_courier(edit_payload, 1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Проверка что развоз корректно завершен
+        self.assertTrue(courier.assign.first().is_complete)
+
     def test_patch_change_region(self):
+        """
+        Назначается развоз, курьер меняет свои районы доставки,
+        из развоза удаляется заказ, который больше не подходит курьеру
+        """
         # Создаем курьера, которого будем редактировать
-        payload = TestAPICouriers.correct_post_courier_payload
+        payload = {"data": [
+            {
+                "courier_id": 30,
+                "courier_type": "bike",
+                "regions": [1, 2, 14, 24],
+                "working_hours": ["09:00-14:00", "19:00-23:00"]
+            },
+        ]}
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         # Создаем группу заказов
         payload = {"data": [
             {
-                "order_id": 1,
+                "order_id": 10,
                 "weight": 0.23,
                 "region": 1,
                 "delivery_hours": ["09:00-18:00"]
             },
             {
-                "order_id": 2,
+                "order_id": 20,
                 "weight": 1,
                 "region": 2,
                 "delivery_hours": ["09:00-18:00"]
@@ -383,26 +436,451 @@ class TestAPICouriers(TestCase, MixinAPI):
         ]}
         response = self.request_post_orders(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
+        self.assertEqual({'orders': [{'id': 10}, {'id': 20}]}, response.data)
         # Назначаем заказы нашему курьеру
-        # курьер должен был получить заказ id=1, id=2
-        response = self.request_post_orders_assign({"courier_id": 1})
+        # курьер должен был получить заказ id=10, id=20
+        response = self.request_post_orders_assign({"courier_id": 30})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['orders'], [{'id': 1}, {'id': 2}])
+        self.assertEqual(response.data['orders'], [{'id': 10}, {'id': 20}])
         # меняем регионы так, чтобы первый заказ не обслуживался курьером
-        response = self.request_patch_courier({"regions": [2, 3]}, 1)
+        response = self.request_patch_courier({"regions": [2, 3]}, 30)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Проверяем доступность первого заказа для других курьеров
-        courier = get_object_or_404(Courier, pk=1)
-        assign = courier.assign.filter(orders__pk=1)
-        # TODO: удалить заказ из назначения
-        order = get_object_or_404(Order, pk=1)
+        courier = get_object_or_404(Courier, pk=30)
+        # Проверяем что заказ удалился из назначения
+        self.assertEqual(courier.assign.first().orders.first().pk, 20)
+        order = get_object_or_404(Order, pk=10)
         self.assertTrue(order.allow_to_assign)
         self.assertIsNone(order.assign_courier)
         # Проверяем что второй заказ не отменен
-        order = get_object_or_404(Order, pk=2)
+        order = get_object_or_404(Order, pk=20)
         self.assertFalse(order.allow_to_assign)
         self.assertEqual(courier, order.assign_courier)
+
+    def test_courier_detail_without_orders(self):
+        """У курьера без завершенных заказов нет рейтинга и зарплаты"""
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+
+        # Заказы не созданы и не назначены
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        orders_from_courier = Order.objects.filter(assign_courier__pk=3)
+        self.assertEqual(len(orders_from_courier), 0)
+        self.assertNotIn('rating', response.data)
+        self.assertNotIn('earning', response.data)
+
+        # Заказы созданы, назначены, но не выполнены
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        orders_from_courier = Order.objects.filter(assign_courier__pk=3)
+        self.assertEqual(len(orders_from_courier), 2)
+        self.assertNotIn('rating', response.data)
+        self.assertNotIn('earning', response.data)
+
+    def test_courier_detail_with_one_no_complete_order(self):
+        """Курьер выполнил один заказ, но не завершил весь развоз"""
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        assign = Assign.objects.get(courier__pk=3)
+        orders = assign.orders.all()
+        self.assertEqual(len(orders), 2)
+
+        # Завершаем один заказ с id = 1
+        payload = {"courier_id": 3, "order_id": 1,
+                   "complete_time": "2021-08-10T10:33:01.42Z"}
+        self.request_post_orders_complete(payload)
+        self.assertFalse(assign.is_complete)
+
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn('rating', response.data)
+        self.assertNotIn('earning', response.data)
+
+    def test_courier_detail_with_one_complete_assign(self):
+        """Курьер выполнил один полный развоз"""
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 1
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 2
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        assign = Assign.objects.get(courier__pk=3)
+        self.assertTrue(assign.is_complete)
+
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+        # Зарплата велокурьера за один полный развоз 1 * 500 * 5
+        self.assertEqual(response.data['earning'], 2500)
+        # Рейтинг с минимальным средним временем развоза 150 секунд ~ 4.79
+        self.assertEqual(response.data['rating'], 4.79)
+
+    def test_courier_detail_with_one_complete_assign_and_one_non_complete(self):
+        """
+        Курьер выполнил один полный развоз и
+        получил назначение на второй, но не выполнил его.
+        Незавершенный развоз и заказы не влияют на рейтинг и зарплату.
+        """
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 1
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 2
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        assign = Assign.objects.get(courier__pk=3)
+        self.assertTrue(assign.is_complete)
+
+        # Формируем второе назначение
+        payload = {"data": [
+            {
+                "order_id": 103,
+                "weight": 0.23,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 104,
+                "weight": 1,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Незавершенный развоз и заказы не влияют на рейтинг
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+        # Зарплата велокурьера за один полный развоз 1 * 500 * 5
+        self.assertEqual(response.data['earning'], 2500)
+        # Рейтинг с минимальным средним временем развоза 150 секунд ~ 4.79
+        self.assertEqual(response.data['rating'], 4.79)
+
+    def test_courier_detail_with_one_complete_assign_and_one_partial(self):
+        """
+        Курьер выполнил один полный развоз и получил назначение на второй,
+        но не выполнил его. Незавершенный развоз не влияет на зарплату.
+        Завершенный заказ влияет на рейтинг.
+        """
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 101
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 102
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        assign = Assign.objects.get(courier__pk=3)
+        self.assertTrue(assign.is_complete)
+
+        # Формируем второе назначение
+        payload = {"data": [
+            {
+                "order_id": 103,
+                "weight": 0.23,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 104,
+                "weight": 1,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 103
+        now = datetime.datetime.now() + datetime.timedelta(minutes=1)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 103, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Незавершенный развоз и заказы не влияют на зарплату
+        # но влияют на рейтинг
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+        # Зарплата велокурьера за один полный развоз 1 * 500 * 5
+        self.assertEqual(response.data['earning'], 2500)
+        # Рейтинг с минимальным средним временем развоза 60 секунд ~ 4.92
+        self.assertEqual(response.data['rating'], 4.92)
+
+    def test_courier_detail_with_two_complete_assign(self):
+        """Курьер выполнил два развоза. Зарплата и рейтинг учитывают оба"""
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 101
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 102
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        assign = Assign.objects.get(courier__pk=3)
+        self.assertTrue(assign.is_complete)
+
+        # Формируем второе назначение
+        payload = {"data": [
+            {
+                "order_id": 103,
+                "weight": 0.23,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 104,
+                "weight": 1,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 103
+        now = datetime.datetime.now() + datetime.timedelta(minutes=1)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 103, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 104
+        now = datetime.datetime.now() + datetime.timedelta(minutes=2)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 104, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Незавершенный развоз и заказы не влияют на зарплату
+        # но влияют на рейтинг
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+        # Зарплата велокурьера за один полный развоз 2 * 500 * 5
+        self.assertEqual(response.data['earning'], 5000)
+        # Рейтинг с минимальным средним временем развоза 60 секунд ~ 4.92
+        self.assertEqual(response.data['rating'], 4.92)
+
+    def test_courier_detail_with_two_complete_assign_change_type_courier(self):
+        """
+        Курьер выполнил один развоз на велотранспорте, а второй на машине.
+        Зарплата учитывает оба типа транспортного средства
+        """
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = self.orders_correct
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 101
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 102
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        assign = Assign.objects.get(courier__pk=3)
+        self.assertTrue(assign.is_complete)
+
+        # меняем тип курьера
+        response = self.request_patch_courier({'courier_type': 'car'}, 3)
+
+        # Формируем второе назначение
+        payload = {"data": [
+            {
+                "order_id": 103,
+                "weight": 0.23,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 104,
+                "weight": 1,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 103
+        now = datetime.datetime.now() + datetime.timedelta(minutes=1)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 103, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 104
+        now = datetime.datetime.now() + datetime.timedelta(minutes=2)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 104, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Незавершенный развоз и заказы не влияют на зарплату
+        # но влияют на рейтинг
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+
+        # Зарплата велокурьера за один полный развоз на велосипеде 1 * 500 * 5
+        # И один полный развоз на машине 1 * 500 * 9
+        self.assertEqual(response.data['earning'], 7000)
+        # Рейтинг с минимальным средним временем развоза 60 секунд ~ 4.92
+        self.assertEqual(response.data['rating'], 4.92)
+
+    def test_courier_detail_one_assign_change_type_courier(self):
+        """
+        Курьер выполнил один развоз пешком, на велотранспорте и на машине.
+        Зарплата учитывает все типы транспортного средства
+        """
+        payload = self.correct_post_courier_payload
+        self.request_post_couriers(payload)
+        # Создаем и назначаем заказы
+        payload = {"data": [
+            {
+                "order_id": 101,
+                "weight": 0.23,
+                "region": 2,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 102,
+                "weight": 1,
+                "region": 2,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 103,
+                "weight": 0.23,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 104,
+                "weight": 1,
+                "region": 14,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+
+        self.request_post_orders(payload)
+        self.request_post_orders_assign({'courier_id': 3})
+
+        # Завершаем один заказ с id = 101
+        format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
+        now = datetime.datetime.now() + datetime.timedelta(minutes=3)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 101, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # меняем тип курьера
+        response = self.request_patch_courier({'courier_type': 'foot'}, 3)
+
+        # Завершаем один заказ с id = 102
+        now = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 102, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # меняем тип курьера
+        response = self.request_patch_courier({'courier_type': 'car'}, 3)
+
+        # Завершаем один заказ с id = 103
+        now = datetime.datetime.now() + datetime.timedelta(minutes=1)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 103, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Завершаем один заказ с id = 104
+        now = datetime.datetime.now() + datetime.timedelta(minutes=2)
+        now = datetime.datetime.strftime(now, format_datetime)[:-4] + 'Z'
+        payload = {'courier_id': 3, 'order_id': 104, 'complete_time': now}
+        self.request_post_orders_complete(payload)
+
+        # Незавершенный развоз и заказы не влияют на зарплату
+        # но влияют на рейтинг
+        response = self.request_get_couriers_detail(3)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('rating', response.data)
+        self.assertIn('earning', response.data)
+
+        # Зарплата велокурьера за один полный развоз:
+        # ((2 + 5 + 9 * 2) / 4) * 500
+        self.assertEqual(response.data['earning'], 3125)
+        # Рейтинг с минимальным средним временем развоза 60 секунд ~ 4.92
+        self.assertEqual(response.data['rating'], 4.92)
 
 
 class TestAPIOrders(TestCase, MixinAPI):
@@ -701,10 +1179,11 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
-        # Повторное назначение недоступно
+        # Повторное назначение недоступно,
+        # возвращается список незавершенных заказов из развоза
         response = self.request_post_orders_assign({"courier_id": 3})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['orders'], [])
+        self.assertEqual(response.data['orders'], [{'id': 1}])
 
     def test_post_orders_assign_correct(self):
         """
@@ -810,6 +1289,82 @@ class TestAPIOrders(TestCase, MixinAPI):
         response = self.request_post_orders_assign({"courier_id": 5})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}, {'id': 1}])
+
+    def test_assign_to_courier_with_non_complete_assign(self):
+        """Нельзя назначить новый развоз, если курьер не завершил предыдущий"""
+        # Создаем группу заказов
+        payload = {"data": [
+            {
+                "order_id": 1,
+                "weight": 0.23,
+                "region": 22,
+                "delivery_hours": ["09:00-18:00"]
+            },
+            {
+                "order_id": 2,
+                "weight": 9.78,
+                "region": 22,
+                "delivery_hours": ["09:00-18:00"]
+            }
+        ]}
+        response = self.request_post_orders(payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
+
+        # Создаем курьеров
+        payload = {"data": [
+            {
+                "courier_id": 300,
+                "courier_type": "foot",
+                "regions": [2, 22, 24],
+                "working_hours": ["11:00-14:00", "09:00-10:00"]
+            },
+            {
+                "courier_id": 4,
+                "courier_type": "bike",
+                "regions": [22],
+                "working_hours": ["09:00-18:00"]
+            },
+            {
+                "courier_id": 5,
+                "courier_type": "car",
+                "regions": [2, 14, 22, 24],
+                "working_hours": ["00:00-21:00"]
+            }
+        ]}
+        response = self.request_post_couriers(payload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual({'couriers': [{'id': 300}, {'id': 4}, {'id': 5}]},
+                         response.data)
+        # назначаем заказы
+        # 3 курьер должен был получить только заказ id=1
+        response = self.request_post_orders_assign({"courier_id": 300})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['orders'], [{'id': 1}])
+
+        # 3 курьер не должен получить заказ id=2
+        response = self.request_post_orders_assign({"courier_id": 300})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['orders'], [{'id': 1}])
+
+        # завершаем развоз из одного заказа
+        correct_payload = {
+            "courier_id": 300,
+            "order_id": 1,
+            "complete_time": "2021-08-10T10:33:01.42Z"
+        }
+        self.request_post_orders_complete(correct_payload)
+
+        # 3 курьер должен получить заказ id=2
+        response = self.request_post_orders_assign({"courier_id": 300})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['orders'], [{'id': 2}])
+
+        # Первый развоз завершен, а второй нет
+        courier = Courier.objects.get(pk=300)
+        assign = courier.assign.all()
+        self.assertEqual([a.is_complete for a in assign], [True, False])
 
     def test_post_orders_complete_incorrect_order_id(self):
         """Некорректное завершение, заказ не существует"""
@@ -958,4 +1513,3 @@ class TestAPIOrders(TestCase, MixinAPI):
 
         response = self.request_post_orders_complete({})
         self.assertEqual(response.status_code, 400)
-

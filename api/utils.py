@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 from typing import List
 
 from django.db.models import Avg, F, DateTimeField
@@ -47,22 +48,25 @@ class Interval:
 
 
 def get_rating(courier):
+    result_times = {int(region): [] for region in courier.regions}
+    orders = Order.objects.filter(
+        assign_courier=courier,
+        is_complete=True).order_by('complete_time')
+    prev_complete = None
+    for order in orders:
+        if prev_complete is None:
+            time_delivery = order.complete_time - order.assign_time
+        else:
+            time_delivery = order.complete_time - prev_complete
+        prev_complete = order.complete_time
+        result_times[order.region].append(time_delivery.seconds)
     result_t = []
-    for region in courier.regions:
-        time_to_region = Order.objects.filter(
-            region=region,
-            assign_courier=courier,
-        ).aggregate(
-            average_difference=Avg((Cast('complete_time',
-                                         output_field=DateTimeField())) -
-                                   (Cast('assign_time',
-                                         output_field=DateTimeField()))))
-        average_difference = time_to_region['average_difference']
-        if average_difference:
-            result_t.append(average_difference.seconds)
-    t = min(result_t) if result_t else 0
+    for region, values in result_times.items():
+        if values:
+            average_difference = sum(values) / len(values)
+            result_t.append(average_difference)
+    t = min(result_t) if result_t else 60 * 60
     return round((60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5, 2)
-
 
 def get_earning(courier):
     coefficient = {
@@ -70,7 +74,20 @@ def get_earning(courier):
         'bike': 5,
         'car': 9
     }
-    n = Assign.objects.filter(courier_id=courier.courier_id,
-                              orders__is_complete=True).count()
-    total = n * 500 * coefficient[courier.courier_type]
-    return total
+    total = 0
+    assigns = Assign.objects.filter(is_complete=True,
+                                    courier_id=courier.courier_id)
+    for assign in assigns:
+        types_courier_in_assign = defaultdict(int)
+        for order in assign.orders.all():
+            courier_type = order.courier_type
+            types_courier_in_assign[courier_type] += 1
+        if len(types_courier_in_assign) == 1:
+            total += 500 * coefficient[list(types_courier_in_assign.keys())[0]]
+        else:
+            coefficients = []
+            for key, val in types_courier_in_assign.items():
+                coefficients.append(coefficient[key] * val)
+            avg_coeficient = sum(coefficients) / sum(types_courier_in_assign.values())
+            total += 500 * avg_coeficient
+    return int(total)

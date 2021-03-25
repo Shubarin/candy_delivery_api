@@ -14,11 +14,18 @@ class Assign(models.Model):
     orders = models.ManyToManyField(
         Order,
         blank=True,
-        related_name='orders',
+        related_name='assigns',
         verbose_name='Orders'
     )
     assign_time = models.DateTimeField(
         auto_now=True,
         db_index=True,
         verbose_name='assign_time'
+    )
+
+    is_complete = models.BooleanField(
+        blank=True,
+        null=True,
+        verbose_name='is_complete',
+        default=False
     )

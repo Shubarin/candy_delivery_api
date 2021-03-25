@@ -57,13 +57,13 @@ class OrderSerializer(serializers.ModelSerializer):
         if len(data) == 0:
             raise ValidationError('empty request')
         return super(OrderSerializer, self).to_internal_value(data)
-    
+
     def update(self, instance, validated_data):
         complete_time = self.context.get('complete_time')
         courier_id = self.context.get('courier_id')
         courier = Courier.objects.get(courier_id=courier_id)
 
-        utc=pytz.UTC
+        utc = pytz.UTC
         format_datetime = '%Y-%m-%dT%H:%M:%S.%f%z'
         date = datetime.datetime.strptime(complete_time, format_datetime)
         asign_date = utc.localize(instance.assign_time)
@@ -72,10 +72,16 @@ class OrderSerializer(serializers.ModelSerializer):
 
         instance.complete_time = complete_time
         instance.assign_courier = courier
+        instance.courier_type = courier.courier_type
         instance.is_complete = True
-        # TODO: вернуть курьеру доступный вес
-        # courier.allowed_orders_weight += instance.weight
-        # courier.update(update_fields=['allowed_orders_weight'])
+        instance.save()
+        # Если все заказы в развозе завершены - завершаем развоз
+        assign = instance.assigns.first()
+        complete_assign = len(assign.orders.all()) == len(
+            assign.orders.filter(is_complete=True))
+        if complete_assign:
+            assign.is_complete = True
+            assign.save()
         return super(OrderSerializer, self).update(instance, validated_data)
 
 
@@ -89,7 +95,7 @@ class OrderListSerializer(serializers.Serializer):
 
         orders = [Order(**item) for item in data]
         return Order.objects.bulk_create(orders)
-    
+
     def to_representation(self, instance):
         data = {'orders': [{'id': order.pk} for order in instance]}
         return data

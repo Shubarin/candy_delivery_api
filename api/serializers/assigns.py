@@ -39,12 +39,17 @@ class AssignSerializer(serializers.ModelSerializer):
         if len(data) == 0:
             raise ValidationError('empty request')
         return super(AssignSerializer, self).to_internal_value(data)
-    
+
     def to_representation(self, instance):
-        if not instance or isinstance(instance, OrderedDict):
+        courier = Courier.objects.get(pk=instance['courier_id'])
+        assign = courier.assign.filter(is_complete=False).last()
+        # if instance['courier_id'] == 300:
+        #     print(courier.assign.all())
+        if not assign:
             return {'orders': []}
-        orders = [{'id': item.pk} for item in instance.orders.all()]
-        assign_time = instance.assign_time
+        orders = [{'id': item.pk} for item in
+                  assign.orders.filter(is_complete=False)]
+        assign_time = assign.assign_time
         response = {'orders': orders}
         if orders:
             response['assign_time'] = str(assign_time)
@@ -54,6 +59,10 @@ class AssignSerializer(serializers.ModelSerializer):
         # Получаем курьера, для которого будем назначать заказы
         courier_id = self.validated_data.get('courier_id')
         courier = get_object_or_404(Courier, pk=courier_id)
+        # Если у курьера есть незавершенные развозы то назначать новый нельзя
+        non_complete_assigns = courier.assign.filter(is_complete=False)
+        if len(non_complete_assigns) >= 1:
+            return None
         # Пересчитываем максимальный вес, с учетом возможных изменений типа
         courier.allowed_orders_weight = courier.get_max_weight(
             courier.courier_type)
@@ -81,5 +90,4 @@ class AssignSerializer(serializers.ModelSerializer):
                 assign.orders.add(order)
                 order.save()
         courier.save()
-        kwargs = {'orders': assign.orders.all()}
-        return super(AssignSerializer, self).save(**kwargs)
+        return assign

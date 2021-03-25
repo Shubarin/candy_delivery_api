@@ -90,7 +90,6 @@ class CourierSerializer(serializers.ModelSerializer):
                     order.cancel_assign()
         if courier_type:
             new_max_weight = instance.get_max_weight(courier_type)
-            # TODO: вынести текущий максимум в свойство
             if new_max_weight < instance.get_max_weight(instance.courier_type):
                 orders = instance.order.filter(is_complete=False)
                 instance.allowed_orders_weight = instance.get_max_weight(
@@ -102,6 +101,13 @@ class CourierSerializer(serializers.ModelSerializer):
                         order.cancel_assign()
                     else:
                         instance.allowed_orders_weight -= order.weight
+        assign = instance.assign.filter(is_complete=False).first()
+        if assign:
+            # если заказов не осталось, закрываем развоз
+            orders = assign.orders.all()
+            if not orders:
+                assign.is_complete = True
+                assign.save()
         return super(CourierSerializer, self).update(instance, validated_data)
 
 

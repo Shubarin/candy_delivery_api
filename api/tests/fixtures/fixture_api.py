@@ -28,6 +28,11 @@ class MixinAPI:
         return response
 
     @staticmethod
+    def request_get_couriers_detail(courier_id):
+        response = MixinAPI.client.get(f'/api/v1/couriers/{courier_id}/')
+        return response
+
+    @staticmethod
     def request_patch_courier(payload, courier_id):
         response = MixinAPI.client.patch(f'/api/v1/couriers/{courier_id}/',
                                          data=json.dumps(payload),

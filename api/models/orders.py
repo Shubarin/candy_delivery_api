@@ -6,6 +6,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from api.models import Courier
+from api.models.couriers import TypeChoices
 
 
 class Order(models.Model):
@@ -32,6 +33,13 @@ class Order(models.Model):
         verbose_name='assign_courier',
         related_name='order'
     )
+    courier_type = models.CharField(
+        max_length=4,
+        choices=TypeChoices.choices,
+        verbose_name='Courier type',
+        blank=True,
+        null=True
+    )
     assign_time = models.DateTimeField(
         blank=True,
         null=True,
@@ -56,6 +64,8 @@ class Order(models.Model):
     )
 
     def cancel_assign(self):
+        # Удаляем заказ из назначенной доставки
+        self.assigns.remove(self.assigns.first())
         self.assign_courier = None
         self.allow_to_assign = True
         self.save()
