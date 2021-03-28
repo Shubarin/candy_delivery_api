@@ -17,10 +17,10 @@ services:
   web:
     build: .
     ports:
-      - "3000-3005:3000"
+      - "80-85:80"
     environment:
       POSTGRES_HOST: db
-    command: python3 manage.py runserver 0.0.0.0:3000
+    command: python3 manage.py runserver 0.0.0.0:80
     volumes:
       - .:/code
     restart: always
