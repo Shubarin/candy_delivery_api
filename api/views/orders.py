@@ -1,11 +1,9 @@
-from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from api.models import Order, Courier
+from api.models import Order
 from api.serializers.assigns import AssignSerializer
 from api.serializers.orders import OrderListSerializer, OrderSerializer
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 
 class OrdersViewSet(viewsets.ViewSet):
@@ -17,10 +15,17 @@ class OrdersViewSet(viewsets.ViewSet):
         # Добавляем подробную информацию об ошибках валидации
         ids = [item.get('order_id') for item in request.data.get('data')]
         errors_list = serializer.errors['data']
-        errors_id = [{'id': id, 'detail': e}
-                     for id, e in zip(ids, errors_list) if e]
-        message = {'validation_error': {'orders': errors_id}}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            errors_id = [{'id': id, **e}
+                         for id, e in zip(ids, errors_list) if e]
+            message = {'validation_error': {'orders': errors_id}}
+            return Response(message, status=status.HTTP_400_BAD_REQUEST)
+        except TypeError as e:
+            return Response({'validation_error': 'bad request TypeError'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'validation_error': e.__class__.__name__},
+                            status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['POST'])
     def assign(self, request):
@@ -39,8 +44,7 @@ class OrdersViewSet(viewsets.ViewSet):
             order = Order.objects.filter(
                 order_id=order_id,
                 assign_courier__pk=courier_id,
-                allow_to_assign=False
-            ).first()
+                allow_to_assign=False).first()
             if not order:
                 raise ValueError
         except Exception:

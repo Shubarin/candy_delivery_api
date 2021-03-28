@@ -1,11 +1,10 @@
 import datetime
 
-from django.shortcuts import get_object_or_404
-from django.test import TestCase, Client
-from rest_framework import status
-
-from api.models import Courier, Order, Assign
+from api.models import Assign, Courier, Order
 from api.tests.fixtures.fixture_api import MixinAPI
+from django.shortcuts import get_object_or_404
+from django.test import Client, TestCase
+from rest_framework import status
 
 
 class TestAPICouriers(TestCase, MixinAPI):
@@ -21,44 +20,44 @@ class TestAPICouriers(TestCase, MixinAPI):
         cls.incorrect_courier = Courier.objects.create(
             courier_id=2,
             courier_type='fit',
-            regions=[1, 2, 3, "a"],
+            regions=[1, 2, 3, 'a'],
             working_hours=['00:00-11:00', 1999, '12:00-23:00']
         )
         cls.guest_client = Client()
-        cls.correct_post_courier_payload = {"data": [
+        cls.correct_post_courier_payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "bike",
-                "regions": [2, 14, 24],
-                "working_hours": ["09:00-14:00", "19:00-23:00"]
+                'courier_id': 3,
+                'courier_type': 'bike',
+                'regions': [2, 14, 24],
+                'working_hours': ['09:00-14:00', '19:00-23:00']
             },
         ]}
-        cls.data_courier_3_foot_4_bike = {"data": [
+        cls.data_courier_3_foot_4_bike = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 14, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 14, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
             {
-                "courier_id": 4,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 4,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': ['09:00-18:00']
             }
         ]}
-        cls.orders_correct = {"data": [
+        cls.orders_correct = {'data': [
             {
-                "order_id": 101,
-                "weight": 0.23,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 101,
+                'weight': 0.23,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 102,
-                "weight": 1,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 102,
+                'weight': 1,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
 
@@ -77,18 +76,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка запроса с пустым/некорректным courier_type.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 5,
-                "courier_type": "fot",
-                "regions": [2, 14, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 5,
+                'courier_type': 'fot',
+                'regions': [2, 14, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
             {
-                "courier_id": 6,
-                "courier_type": "",
-                "regions": [22],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 6,
+                'courier_type': '',
+                'regions': [22],
+                'working_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_couriers(incorrect_payload)
@@ -99,18 +98,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка запроса с пустым и/или некорректным списком regions.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 5,
-                "courier_type": "foot",
-                "regions": [2, "a", 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 5,
+                'courier_type': 'foot',
+                'regions': [2, 'a', 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
             {
-                "courier_id": 6,
-                "courier_type": "bike",
-                "regions": [],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 6,
+                'courier_type': 'bike',
+                'regions': [],
+                'working_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_couriers(incorrect_payload)
@@ -121,18 +120,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка запроса с пустым и/или некорректным списком working_hours.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 5,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["1136-14:06", "09:0611:06"]
+                'courier_id': 5,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['1136-14:06', '09:0611:06']
             },
             {
-                "courier_id": 6,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": []
+                'courier_id': 6,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': []
             }
         ]}
         response = self.request_post_couriers(incorrect_payload)
@@ -143,18 +142,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка запроса с существующим courier_id.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 2,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 2,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
             {
-                "courier_id": 2,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 2,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             }
         ]}
         response = self.request_post_couriers(incorrect_payload)
@@ -162,7 +161,7 @@ class TestAPICouriers(TestCase, MixinAPI):
 
     def test_post_couriers_empty(self):
         """Проверка пустого запроса. Должен вернуть HTTP_400_BAD_REQUEST"""
-        incorrect_payload = {"data": []}
+        incorrect_payload = {'data': []}
         response = self.request_post_couriers(incorrect_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -171,12 +170,12 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка непустого запроса. Но у одного из курьеров нет полей.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 2,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 2,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
             {}
         ]}
@@ -188,14 +187,13 @@ class TestAPICouriers(TestCase, MixinAPI):
         Проверка запроса с несуществующими полями.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        client = TestAPICouriers.guest_client
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "courier_id": 4,
-                "sleep": 5,  # лишнее поле
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 4,
+                'sleep': 5,  # лишнее поле
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
         ]}
         response = self.request_post_couriers(incorrect_payload)
@@ -212,7 +210,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         old_courier = Courier.objects.get(pk=3)
-        response = self.request_patch_courier({"courier_type": "foot"}, 3)
+        response = self.request_patch_courier({'courier_type': 'foot'}, 3)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_courier = Courier.objects.get(pk=3)
 
@@ -229,7 +227,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         old_courier = Courier.objects.get(pk=3)
-        response = self.request_patch_courier({"regions": [2]}, 3)
+        response = self.request_patch_courier({'regions': [2]}, 3)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_courier = Courier.objects.get(pk=3)
         self.assertNotEqual(old_courier.regions, new_courier.regions)
@@ -251,7 +249,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         old_courier = Courier.objects.get(pk=3)
-        response = self.request_patch_courier({"regions": [2]}, 3)
+        response = self.request_patch_courier({'regions': [2]}, 3)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_courier = Courier.objects.get(pk=3)
         self.assertNotEqual(old_courier.regions, new_courier.regions)
@@ -274,7 +272,8 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         old_courier = Courier.objects.get(pk=3)
-        correct_edit_payload = {"working_hours": ["07:00-11:00", "17:00-21:00"]}
+        correct_edit_payload = {'working_hours': ['07:00-11:00',
+                                                  '17:00-21:00']}
         response = self.request_patch_courier(correct_edit_payload, 3)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_courier = Courier.objects.get(pk=3)
@@ -283,15 +282,16 @@ class TestAPICouriers(TestCase, MixinAPI):
 
     def test_patch_not_found(self):
         """
-        Проверка ошибочного запроса на редактирование курьера (id не существует)
-        Должен вернуть HTTP_404_NOT_FOUN
+        Проверка ошибочного запроса на редактирование курьера
+        (id не существует). Должен вернуть HTTP_404_NOT_FOUN
         """
         # Создаем курьера, которого будем редактировать
         payload = TestAPICouriers.correct_post_courier_payload
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        correct_edit_payload = {"working_hours": ["07:00-11:00", "17:00-21:00"]}
+        correct_edit_payload = {'working_hours': ['07:00-11:00',
+                                                  '17:00-21:00']}
         response = self.request_patch_courier(correct_edit_payload, 6)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -305,7 +305,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        response = self.request_patch_courier({"evil": True}, 1)
+        response = self.request_patch_courier({'evil': True}, 1)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_change_courier_type(self):
@@ -314,18 +314,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         # Создаем группу заказов
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 14,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 14,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 0.23,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 0.23,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(payload)
@@ -333,7 +333,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
         # Назначаем заказы нашему курьеру
         # курьер должен был получить заказ id=1, id=2
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}, {'id': 2}])
         # меняем тип курьера так, чтобы
@@ -360,18 +360,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         # Создаем группу заказов
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 1,
-                "delivery_hours": ["09:00-11:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 1,
+                'delivery_hours': ['09:00-11:00']
             },
             {
-                "order_id": 2,
-                "weight": 1,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 1,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(payload)
@@ -379,7 +379,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
         # Назначаем заказы нашему курьеру
         # курьер должен был получить заказ id=1, id=2
-        response = self.request_post_orders_assign({"courier_id": 1})
+        response = self.request_post_orders_assign({'courier_id': 1})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}, {'id': 2}])
         # меняем рабочие часы так, чтобы
@@ -409,29 +409,29 @@ class TestAPICouriers(TestCase, MixinAPI):
         из развоза удаляется заказ, который больше не подходит курьеру
         """
         # Создаем курьера, которого будем редактировать
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 30,
-                "courier_type": "bike",
-                "regions": [1, 2, 14, 24],
-                "working_hours": ["09:00-14:00", "19:00-23:00"]
+                'courier_id': 30,
+                'courier_type': 'bike',
+                'regions': [1, 2, 14, 24],
+                'working_hours': ['09:00-14:00', '19:00-23:00']
             },
         ]}
         response = self.request_post_couriers(payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         # Создаем группу заказов
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 10,
-                "weight": 0.23,
-                "region": 1,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 10,
+                'weight': 0.23,
+                'region': 1,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 20,
-                "weight": 1,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 20,
+                'weight': 1,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(payload)
@@ -439,11 +439,11 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 10}, {'id': 20}]}, response.data)
         # Назначаем заказы нашему курьеру
         # курьер должен был получить заказ id=10, id=20
-        response = self.request_post_orders_assign({"courier_id": 30})
+        response = self.request_post_orders_assign({'courier_id': 30})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 10}, {'id': 20}])
         # меняем регионы так, чтобы первый заказ не обслуживался курьером
-        response = self.request_patch_courier({"regions": [2, 3]}, 30)
+        response = self.request_patch_courier({'regions': [2, 3]}, 30)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Проверяем доступность первого заказа для других курьеров
         courier = get_object_or_404(Courier, pk=30)
@@ -495,8 +495,8 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertEqual(len(orders), 2)
 
         # Завершаем один заказ с id = 1
-        payload = {"courier_id": 3, "order_id": 1,
-                   "complete_time": "2021-08-10T10:33:01.42Z"}
+        payload = {'courier_id': 3, 'order_id': 1,
+                   'complete_time': '2021-08-10T10:33:01.42Z'}
         self.request_post_orders_complete(payload)
         self.assertFalse(assign.is_complete)
 
@@ -539,7 +539,7 @@ class TestAPICouriers(TestCase, MixinAPI):
         # Рейтинг с минимальным средним временем развоза 150 секунд ~ 4.79
         self.assertEqual(response.data['rating'], 4.79)
 
-    def test_courier_detail_with_one_complete_assign_and_one_non_complete(self):
+    def test_courier_detail_with_one_complete_assign_and_one_no_complete(self):
         """
         Курьер выполнил один полный развоз и
         получил назначение на второй, но не выполнил его.
@@ -569,18 +569,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertTrue(assign.is_complete)
 
         # Формируем второе назначение
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 103,
-                "weight": 0.23,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 103,
+                'weight': 0.23,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 104,
-                "weight": 1,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 104,
+                'weight': 1,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         self.request_post_orders(payload)
@@ -626,18 +626,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertTrue(assign.is_complete)
 
         # Формируем второе назначение
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 103,
-                "weight": 0.23,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 103,
+                'weight': 0.23,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 104,
-                "weight": 1,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 104,
+                'weight': 1,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         self.request_post_orders(payload)
@@ -686,18 +686,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertTrue(assign.is_complete)
 
         # Формируем второе назначение
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 103,
-                "weight": 0.23,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 103,
+                'weight': 0.23,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 104,
-                "weight": 1,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 104,
+                'weight': 1,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         self.request_post_orders(payload)
@@ -758,18 +758,18 @@ class TestAPICouriers(TestCase, MixinAPI):
         response = self.request_patch_courier({'courier_type': 'car'}, 3)
 
         # Формируем второе назначение
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 103,
-                "weight": 0.23,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 103,
+                'weight': 0.23,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 104,
-                "weight": 1,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 104,
+                'weight': 1,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         self.request_post_orders(payload)
@@ -808,30 +808,30 @@ class TestAPICouriers(TestCase, MixinAPI):
         payload = self.correct_post_courier_payload
         self.request_post_couriers(payload)
         # Создаем и назначаем заказы
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 101,
-                "weight": 0.23,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 101,
+                'weight': 0.23,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 102,
-                "weight": 1,
-                "region": 2,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 102,
+                'weight': 1,
+                'region': 2,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 103,
-                "weight": 0.23,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 103,
+                'weight': 0.23,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 104,
-                "weight": 1,
-                "region": 14,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 104,
+                'weight': 1,
+                'region': 14,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
 
@@ -877,8 +877,8 @@ class TestAPICouriers(TestCase, MixinAPI):
         self.assertIn('earning', response.data)
 
         # Зарплата велокурьера за один полный развоз:
-        # ((2 + 5 + 9 * 2) / 4) * 500
-        self.assertEqual(response.data['earning'], 3125)
+        # 5 * 500 = 2500, не учитывает смену типа т/с
+        self.assertEqual(response.data['earning'], 2500)
         # Рейтинг с минимальным средним временем развоза 60 секунд ~ 4.92
         self.assertEqual(response.data['rating'], 4.92)
 
@@ -888,31 +888,31 @@ class TestAPIOrders(TestCase, MixinAPI):
     def setUpClass(cls):
         super().setUpClass()
         cls.guest_client = Client()
-        cls.correct_post_order_payload = {"data": [
+        cls.correct_post_order_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 12,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 12,
+                'delivery_hours': ['09:00-18:00']
             },
         ]}
         cls.complete_data = {
-            "courier_id": 3,
-            "order_id": 1,
-            "complete_time": "2021-08-10T10:33:01.42Z"
+            'courier_id': 3,
+            'order_id': 1,
+            'complete_time': '2021-08-10T10:33:01.42Z'
         }
-        cls.orders_1_2_test = {"data": [
+        cls.orders_1_2_test = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 15,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 15,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
 
@@ -931,24 +931,24 @@ class TestAPIOrders(TestCase, MixinAPI):
         Проверка запроса с пустым/некорректным weight.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 99,
-                "region": 12,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 99,
+                'region': 12,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": -15,
-                "region": 1,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': -15,
+                'region': 1,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 3,
-                "weight": None,
-                "region": 1,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 3,
+                'weight': None,
+                'region': 1,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(incorrect_payload)
@@ -959,18 +959,18 @@ class TestAPIOrders(TestCase, MixinAPI):
         Проверка запроса с пустым и/или некорректным region.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": -12,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': -12,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 15,
-                "region": 1.4,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 15,
+                'region': 1.4,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(incorrect_payload)
@@ -981,18 +981,18 @@ class TestAPIOrders(TestCase, MixinAPI):
         Проверка запроса с пустым и/или некорректным delivery_hours.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 12,
-                "delivery_hours": ["0900-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 12,
+                'delivery_hours': ['0900-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 15,
-                "region": 1,
-                "delivery_hours": []
+                'order_id': 2,
+                'weight': 15,
+                'region': 1,
+                'delivery_hours': []
             }
         ]}
         response = self.request_post_orders(incorrect_payload)
@@ -1000,7 +1000,7 @@ class TestAPIOrders(TestCase, MixinAPI):
 
     def test_post_orders_empty(self):
         """Проверка пустого запроса. Должен вернуть HTTP_400_BAD_REQUEST"""
-        incorrect_payload = {"data": []}
+        incorrect_payload = {'data': []}
         response = self.request_post_orders(incorrect_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -1009,12 +1009,12 @@ class TestAPIOrders(TestCase, MixinAPI):
         Проверка непустого запроса. Но у одного из заказов нет полей.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 12,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 12,
+                'delivery_hours': ['09:00-18:00']
             },
             {}
         ]}
@@ -1026,13 +1026,13 @@ class TestAPIOrders(TestCase, MixinAPI):
         Проверка запроса с несуществующими полями.
         Должен вернуть HTTP_400_BAD_REQUEST
         """
-        incorrect_payload = {"data": [
+        incorrect_payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "sleep": 5,
-                "region": 12,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'sleep': 5,
+                'region': 12,
+                'delivery_hours': ['09:00-18:00']
             },
         ]}
         response = self.request_post_orders(incorrect_payload)
@@ -1051,12 +1051,12 @@ class TestAPIOrders(TestCase, MixinAPI):
 
         # Создаем курьеров
         payload = self.data_courier_3_foot_4_bike
-        payload["data"].append(
+        payload['data'].append(
             {
-                "courier_id": 5,
-                "courier_type": "car",
-                "regions": [2, 14, 22, 24],
-                "working_hours": ["00:00-21:00"]
+                'courier_id': 5,
+                'courier_type': 'car',
+                'regions': [2, 14, 22, 24],
+                'working_hours': ['00:00-21:00']
             }
         )
         response = self.request_post_couriers(payload)
@@ -1065,43 +1065,38 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
 
         # назначаем заказы
-        # 6 курьер не должен был получить заказов
-        response = self.request_post_orders_assign({"courier_id": 6})
-        self.assertEqual(response.status_code, 400)
-
-        # bad_id курьер не должен был получить заказов
-        response = self.request_post_orders_assign({"courier_id": 'bad_id'})
-        self.assertEqual(response.status_code, 400)
-
-        # None курьер не должен был получить заказов
-        response = self.request_post_orders_assign({"courier_id": None})
-        self.assertEqual(response.status_code, 400)
+        # 6 курьер  и остальные из списка не должны получить заказов
+        test_case = [6, 1000, 'bad_id', None, []]
+        for case in test_case:
+            response = self.request_post_orders_assign({'courier_id': case})
+            self.assertEqual(response.status_code, 400)
 
     def test_post_orders_assign_weight_greatest_allowed_weight_courier(self):
-        payload = {"data": [
+        """Заказы превосходящие доступный вес курьера не назначаются"""
+        payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 15,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 15,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 20,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 20,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 3,
-                "weight": 30,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 3,
+                'weight': 30,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 4,
-                "weight": 50,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 4,
+                'weight': 50,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
         ]}
         response = self.request_post_orders(payload)
@@ -1111,24 +1106,24 @@ class TestAPIOrders(TestCase, MixinAPI):
             response.data)
 
         # Создаем курьеров
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 1,
-                "courier_type": "foot",
-                "regions": [22],
-                "working_hours": ["00:00-23:59"]
+                'courier_id': 1,
+                'courier_type': 'foot',
+                'regions': [22],
+                'working_hours': ['00:00-23:59']
             },
             {
-                "courier_id": 2,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": ["00:00-23:59"]
+                'courier_id': 2,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': ['00:00-23:59']
             },
             {
-                "courier_id": 3,
-                "courier_type": "car",
-                "regions": [22],
-                "working_hours": ["00:00-23:59"]
+                'courier_id': 3,
+                'courier_type': 'car',
+                'regions': [22],
+                'working_hours': ['00:00-23:59']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1138,21 +1133,22 @@ class TestAPIOrders(TestCase, MixinAPI):
 
         # назначаем заказы
         # 1 курьер не должен был получить заказов
-        response = self.request_post_orders_assign({"courier_id": 1})
+        response = self.request_post_orders_assign({'courier_id': 1})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [])
 
         # 2 курьер должен был получить заказ 1, остальные не проходят по весу
-        response = self.request_post_orders_assign({"courier_id": 2})
+        response = self.request_post_orders_assign({'courier_id': 2})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # 3 курьер должен был получить заказ 2, 3 остальные не проходят по весу
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}, {'id': 3}])
 
     def test_post_orders_assign_double_assign(self):
+        """Заказы не назначаются повторно"""
         # Создаем группу заказов
         payload = TestAPIOrders.orders_1_2_test
         response = self.request_post_orders(payload)
@@ -1161,12 +1157,12 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьера
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1175,13 +1171,13 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
 
         # Назначаем первый заказ
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # Повторное назначение недоступно,
         # возвращается список незавершенных заказов из развоза
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
@@ -1198,24 +1194,24 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьеров
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             },
             {
-                "courier_id": 4,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 4,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': ['09:00-18:00']
             },
             {
-                "courier_id": 5,
-                "courier_type": "car",
-                "regions": [2, 14, 22, 24],
-                "working_hours": ["00:00-21:00"]
+                'courier_id': 5,
+                'courier_type': 'car',
+                'regions': [2, 14, 22, 24],
+                'working_hours': ['00:00-21:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1225,17 +1221,17 @@ class TestAPIOrders(TestCase, MixinAPI):
 
         # назначаем заказы
         # 3 курьер должен был получить только заказ id=1
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # 4 курьер должен был получить только заказ id=2
-        response = self.request_post_orders_assign({"courier_id": 4})
+        response = self.request_post_orders_assign({'courier_id': 4})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}])
 
         # 5 курьер не должен был получить заказов, в ответе нет assign_time
-        response = self.request_post_orders_assign({"courier_id": 5})
+        response = self.request_post_orders_assign({'courier_id': 5})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [])
         self.assertNotIn('assign_time', response.data)
@@ -1250,24 +1246,24 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьеров
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             },
             {
-                "courier_id": 4,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 4,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': ['09:00-18:00']
             },
             {
-                "courier_id": 5,
-                "courier_type": "car",
-                "regions": [2, 14, 22, 24],
-                "working_hours": ["00:00-21:00"]
+                'courier_id': 5,
+                'courier_type': 'car',
+                'regions': [2, 14, 22, 24],
+                'working_hours': ['00:00-21:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1277,7 +1273,7 @@ class TestAPIOrders(TestCase, MixinAPI):
 
         # назначаем заказы
         # 3 курьер должен был получить только заказ id=1
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
@@ -1286,25 +1282,25 @@ class TestAPIOrders(TestCase, MixinAPI):
         order.cancel_assign()
 
         # 5 курьер должен был получить заказы id=1, 2
-        response = self.request_post_orders_assign({"courier_id": 5})
+        response = self.request_post_orders_assign({'courier_id': 5})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}, {'id': 1}])
 
     def test_assign_to_courier_with_non_complete_assign(self):
         """Нельзя назначить новый развоз, если курьер не завершил предыдущий"""
         # Создаем группу заказов
-        payload = {"data": [
+        payload = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             },
             {
-                "order_id": 2,
-                "weight": 9.78,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 2,
+                'weight': 9.78,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
         response = self.request_post_orders(payload)
@@ -1313,24 +1309,24 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьеров
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 300,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 300,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             },
             {
-                "courier_id": 4,
-                "courier_type": "bike",
-                "regions": [22],
-                "working_hours": ["09:00-18:00"]
+                'courier_id': 4,
+                'courier_type': 'bike',
+                'regions': [22],
+                'working_hours': ['09:00-18:00']
             },
             {
-                "courier_id": 5,
-                "courier_type": "car",
-                "regions": [2, 14, 22, 24],
-                "working_hours": ["00:00-21:00"]
+                'courier_id': 5,
+                'courier_type': 'car',
+                'regions': [2, 14, 22, 24],
+                'working_hours': ['00:00-21:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1339,25 +1335,25 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
         # назначаем заказы
         # 3 курьер должен был получить только заказ id=1
-        response = self.request_post_orders_assign({"courier_id": 300})
+        response = self.request_post_orders_assign({'courier_id': 300})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # 3 курьер не должен получить заказ id=2
-        response = self.request_post_orders_assign({"courier_id": 300})
+        response = self.request_post_orders_assign({'courier_id': 300})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
         # завершаем развоз из одного заказа
         correct_payload = {
-            "courier_id": 300,
-            "order_id": 1,
-            "complete_time": "2021-08-10T10:33:01.42Z"
+            'courier_id': 300,
+            'order_id': 1,
+            'complete_time': '2021-08-10T10:33:01.42Z'
         }
         self.request_post_orders_complete(correct_payload)
 
         # 3 курьер должен получить заказ id=2
-        response = self.request_post_orders_assign({"courier_id": 300})
+        response = self.request_post_orders_assign({'courier_id': 300})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 2}])
 
@@ -1391,10 +1387,12 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
         # завершаем заказы
-        correct_payload = TestAPIOrders.complete_data
-        response = self.request_post_orders_complete(correct_payload)
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        payload = TestAPIOrders.complete_data
+        test_case = [4, 1000, -1, 'foo', None, []]
+        for case in test_case:
+            payload['courier_id'] = case
+            response = self.request_post_orders_complete(payload)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_post_orders_complete_incorrect_courier_id_other_order(self):
         """Некорректный id курьера, заказ назначен другому исполнителю"""
@@ -1405,18 +1403,18 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
         # Создаем курьера
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             },
             {
-                "courier_id": 4,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 4,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1425,16 +1423,16 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
 
         # Назначаем заказы
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
         # завершаем заказы
         payload = TestAPIOrders.complete_data
-        payload['courier_id'] = 4
-
-        response = self.request_post_orders_complete(payload)
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        test_case = [4, 1000, -1, 'foo', None, []]
+        for case in test_case:
+            payload['courier_id'] = case
+            response = self.request_post_orders_complete(payload)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_post_orders_complete_correct(self):
         """Успешное завершение заказов"""
@@ -1446,12 +1444,12 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьера
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             }
         ]}
         response = self.request_post_couriers(payload)
@@ -1460,7 +1458,7 @@ class TestAPIOrders(TestCase, MixinAPI):
                          response.data)
 
         # Назначаем заказы
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
@@ -1481,12 +1479,12 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual({'orders': [{'id': 1}, {'id': 2}]}, response.data)
 
         # Создаем курьера
-        payload = {"data": [
+        payload = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 22, 24],
-                "working_hours": ["11:00-14:00", "09:00-10:00"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 22, 24],
+                'working_hours': ['11:00-14:00', '09:00-10:00']
             }
         ]}
 
@@ -1500,16 +1498,24 @@ class TestAPIOrders(TestCase, MixinAPI):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['orders'], [{'id': 1}])
 
-        # завершаем заказы в прошлом веке
+        # завершаем заказы в прошлом веке,
+        # на секунду раньше чем назначили и т.д
         payload = TestAPIOrders.complete_data
-        payload['complete_time'] = '1900-01-10T10:33:01.42Z'
-        response = self.request_post_orders_complete(payload)
-        self.assertEqual(response.status_code, 400)
+        test_case = ['1900-01-10T10:33:01.42Z',
+                     None, 0, 1000, 'abacaba', [], [None], [0], [1000],
+                     datetime.datetime.now() - datetime.timedelta(seconds=1)]
+        for case in test_case:
+            if isinstance(case, datetime.datetime):
+                format = '%Y-%m-%dT%H:%M:%S.%f%z'
+                case = datetime.datetime.strftime(case, format)[:-4] + 'Z'
+            payload['complete_time'] = case
+            response = self.request_post_orders_complete(payload)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        payload_without_time = {'courier_id': 3,
-                                'order_id': payload['order_id']}
-        response = self.request_post_orders_complete(payload_without_time)
-        self.assertEqual(response.status_code, 400)
+            payload_without_time = {'courier_id': 3,
+                                    'order_id': payload['order_id']}
+            response = self.request_post_orders_complete(payload_without_time)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        response = self.request_post_orders_complete({})
-        self.assertEqual(response.status_code, 400)
+            response = self.request_post_orders_complete({})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

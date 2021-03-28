@@ -1,8 +1,7 @@
-from django.test import TestCase
-from rest_framework import status
-
 from api.models import Courier, Order
 from api.tests.fixtures.fixture_api import MixinAPI
+from django.test import TestCase
+from rest_framework import status
 
 
 class TestModelCouriers(TestCase, MixinAPI):
@@ -23,7 +22,8 @@ class TestModelCouriers(TestCase, MixinAPI):
     def test_correct_value_courier_type(self):
         """Корректные значения courier_type сохраняются в модель"""
         types = ['foot', 'bike', 'car']
-        payload = {"data": [{'regions': [2], 'working_hours': ['11:30-14:00']}]}
+        payload = {'data': [{'regions': [2],
+                             'working_hours': ['11:30-14:00']}]}
         for i, courier_type in enumerate(types, 4):
             payload['data'][0]['courier_id'] = i
             payload['data'][0]['courier_type'] = courier_type
@@ -35,7 +35,8 @@ class TestModelCouriers(TestCase, MixinAPI):
     def test_incorrect_value_courier_type(self):
         """Некорректные значения courier_type не сохраняются в модель"""
         types = ['foo', 'bar', 1234, None, []]
-        payload = {'data': [{'regions': [2], 'working_hours': ['11:30-14:00']}]}
+        payload = {'data': [{'regions': [2],
+                             'working_hours': ['11:30-14:00']}]}
         for i, courier_type in enumerate(types, 4):
             payload['data'][0]['courier_id'] = i
             payload['data'][0]['courier_type'] = courier_type
@@ -52,12 +53,14 @@ class TestModelCouriers(TestCase, MixinAPI):
             payload['data'][0]['regions'] = region
             response = self.request_post_couriers(payload)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-            reg_li = [int(x) for x in Courier.objects.get(courier_id=i).regions]
+            reg_li = [int(x)
+                      for x in Courier.objects.get(courier_id=i).regions]
             self.assertIn(reg_li, regions)
 
     def test_incorrect_value_regions(self):
         """Некорректные значения regions  не сохраняются в модель"""
-        regions = [[], ['1, 2, 3'], [0], [-1], [None], None, 1, -1, 0, 100, 'a']
+        regions = [[], ['1, 2, 3'], [0], [-1],
+                   [None], None, 1, -1, 0, 100, 'a']
         payload = {'data': [{'courier_type': 'car',
                              'working_hours': ['11:30-14:00']}]}
         for i, region in enumerate(regions, 4):
@@ -81,7 +84,7 @@ class TestModelCouriers(TestCase, MixinAPI):
     def test_incorrect_value_working_hours(self):
         """Некорректные значения working_hours не сохраняются в модель"""
         working_hours = [[], ['00:00-1200'], ['0000-12:00'], ['0000-1200'],
-                         ['00:0012:00'], ['00001200'], ['Foo-Bar'], ['Foo:Bar'],
+                         ['00:0012:00'], ['00001200'], ['Foo-Bar'], ['Foo:Ba'],
                          [12], [None], 'foo-bar', None, 123, '00:00-12:00',
                          ['17:00-12:00'], ['12:00-00:01'], ['00:00-24:01']]
         payload = {'data': [{'courier_type': 'foot', 'regions': [1]}]}
@@ -99,11 +102,11 @@ class TestModelCouriers(TestCase, MixinAPI):
 
     def test_can_take_weight(self):
         """Функция can_take_weight возвращает корректные значения"""
-        payload = {"data": [{'regions': [2], 'working_hours': ['11:30-14:00'],
+        payload = {'data': [{'regions': [2], 'working_hours': ['11:30-14:00'],
                              'courier_id': 1, 'courier_type': 'foot'}]}
         self.request_post_couriers(payload)
         courier = Courier.objects.get(pk=1)
-        payload = {"data": [{'region': 2, 'delivery_hours': ['11:30-14:00'],
+        payload = {'data': [{'region': 2, 'delivery_hours': ['11:30-14:00'],
                              'order_id': 1, 'weight': 1},
                             {'region': 2, 'delivery_hours': ['11:30-14:00'],
                              'order_id': 2, 'weight': 11}]}
@@ -118,7 +121,7 @@ class TestModelOrders(TestCase, MixinAPI):
     def test_correct_value_weight(self):
         """Корректные значения weight сохраняются в модель"""
         weights = [0.01, 50, 49]
-        payload = {"data": [{'region': 2, 'delivery_hours': ['11:30-14:00']}]}
+        payload = {'data': [{'region': 2, 'delivery_hours': ['11:30-14:00']}]}
         for i, weight in enumerate(weights, 1):
             payload['data'][0]['order_id'] = i
             payload['data'][0]['weight'] = weight
@@ -130,7 +133,7 @@ class TestModelOrders(TestCase, MixinAPI):
     def test_incorrect_value_weight(self):
         """Некорректные значения weight не сохраняются в модель"""
         weights = [0, -50, 50.0001, 'foo', 0.00001, 1000, -1000, [], [1], None]
-        payload = {"data": [{'region': 2, 'delivery_hours': ['11:30-14:00']}]}
+        payload = {'data': [{'region': 2, 'delivery_hours': ['11:30-14:00']}]}
         for i, weight in enumerate(weights, 1):
             payload['data'][0]['order_id'] = i
             payload['data'][0]['weight'] = weight
@@ -162,7 +165,7 @@ class TestModelOrders(TestCase, MixinAPI):
     def test_correct_delivery_hours(self):
         """Корректные значения delivery_hours сохраняются в модель"""
         delivery_hours = [['00:00-23:59'], ['00:00-12:00', '12:01-23:59']]
-        payload = {"data": [{'region': 2, 'weight': 1}]}
+        payload = {'data': [{'region': 2, 'weight': 1}]}
         for i, hours in enumerate(delivery_hours, 1):
             payload['data'][0]['order_id'] = i
             payload['data'][0]['delivery_hours'] = hours
@@ -177,7 +180,7 @@ class TestModelOrders(TestCase, MixinAPI):
                           ['00:0012:00'], ['00001200'], ['Foo-Bar'],
                           ['Foo:Bar'], [12], [None], 'foo-bar',
                           None, 123, '00:00-12:00', ['00:00-24:00']]
-        payload = {"data": [{'region': 2, 'weight': 1}]}
+        payload = {'data': [{'region': 2, 'weight': 1}]}
         for i, hours in enumerate(delivery_hours, 1):
             payload['data'][0]['order_id'] = i
             payload['data'][0]['delivery_hours'] = hours
@@ -186,10 +189,10 @@ class TestModelOrders(TestCase, MixinAPI):
 
     def test_assign_cancel(self):
         """тест для проверки отмены назначения заказа"""
-        payload = {"data": [{'regions': [2], 'working_hours': ['11:30-14:00'],
+        payload = {'data': [{'regions': [2], 'working_hours': ['11:30-14:00'],
                              'courier_id': 1, 'courier_type': 'foot'}]}
         self.request_post_couriers(payload)
-        payload = {"data": [{'region': 2, 'delivery_hours': ['11:30-14:00'],
+        payload = {'data': [{'region': 2, 'delivery_hours': ['11:30-14:00'],
                              'order_id': 1, 'weight': 1},
                             {'region': 2, 'delivery_hours': ['11:30-14:00'],
                              'order_id': 2, 'weight': 11}]}

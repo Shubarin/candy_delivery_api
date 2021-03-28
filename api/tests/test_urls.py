@@ -1,26 +1,23 @@
-import json
-
-from django.test import TestCase, Client
-
 from api.tests.fixtures.fixture_api import MixinAPI
+from django.test import TestCase
 
 
 class URLTests(TestCase, MixinAPI):
     def setUp(self) -> None:
-        self.courier = {"data": [
+        self.courier = {'data': [
             {
-                "courier_id": 3,
-                "courier_type": "foot",
-                "regions": [2, 14, 22, 24],
-                "working_hours": ["11:36-14:06", "09:06-11:06"]
+                'courier_id': 3,
+                'courier_type': 'foot',
+                'regions': [2, 14, 22, 24],
+                'working_hours': ['11:36-14:06', '09:06-11:06']
             },
         ]}
-        self.order = {"data": [
+        self.order = {'data': [
             {
-                "order_id": 1,
-                "weight": 0.23,
-                "region": 22,
-                "delivery_hours": ["09:00-18:00"]
+                'order_id': 1,
+                'weight': 0.23,
+                'region': 22,
+                'delivery_hours': ['09:00-18:00']
             }
         ]}
 
@@ -48,7 +45,7 @@ class URLTests(TestCase, MixinAPI):
     def test_orders_assign_url_exists_at_desired_location(self):
         """Проверка доступности адреса /api/v1/orders/assign."""
         self.request_post_couriers(self.courier)
-        response = self.request_post_orders_assign({"courier_id": 3})
+        response = self.request_post_orders_assign({'courier_id': 3})
         self.assertEqual(response.status_code, 200)
 
     def test_orders_complete_url_exists_at_desired_location(self):
@@ -58,12 +55,12 @@ class URLTests(TestCase, MixinAPI):
         # Создаем курьера
         self.request_post_couriers(self.courier)
         # Назначаем заказы
-        self.request_post_orders_assign({"courier_id": 3})
+        self.request_post_orders_assign({'courier_id': 3})
         # завершаем заказы
         payload = {
-            "courier_id": 3,
-            "order_id": 1,
-            "complete_time": "2021-08-10T10:33:01.42Z"
+            'courier_id': 3,
+            'order_id': 1,
+            'complete_time': '2021-08-10T10:33:01.42Z'
         }
         response = self.request_post_orders_complete(payload)
         self.assertEqual(response.status_code, 200)

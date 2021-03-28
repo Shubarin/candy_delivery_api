@@ -1,6 +1,6 @@
-from django.db import models
-
 from api.models import Courier, Order
+from api.models.couriers import TypeChoices
+from django.db import models
 
 
 class Assign(models.Model):
@@ -8,6 +8,13 @@ class Assign(models.Model):
         Courier,
         related_name='assign',
         on_delete=models.CASCADE,
+        blank=True,
+        null=True
+    )
+    courier_type = models.CharField(
+        max_length=4,
+        choices=TypeChoices.choices,
+        verbose_name='Courier type',
         blank=True,
         null=True
     )
@@ -29,3 +36,7 @@ class Assign(models.Model):
         verbose_name='is_complete',
         default=False
     )
+
+    def can_close(self):
+        return len(self.orders.all()) == len(
+            self.orders.filter(is_complete=True))

@@ -1,13 +1,9 @@
-import datetime
-from collections import OrderedDict
-
+from api.models import Assign, Courier, Order
+from api.utils import Interval
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.validators import UniqueValidator
-
-from api.models import Order, Assign, Courier
-from api.utils import Interval
 
 
 class AssignSerializer(serializers.ModelSerializer):
@@ -22,13 +18,32 @@ class AssignSerializer(serializers.ModelSerializer):
         fields = ('courier_id', 'orders', 'assign_time')
         model = Assign
 
-    @classmethod
-    def validate_courier_id(self, courier_id):
-        courier = Courier.objects.filter(pk=courier_id).exists()
-        if not courier:
-            raise ValidationError('invalid value courier_id'
-                                  f'({courier_id}) is not exists')
-        return courier_id
+    def save(self, **kwargs):
+        # Получаем курьера, для которого будем назначать заказы
+        courier_id = self.validated_data.get('courier_id')
+        courier = get_object_or_404(Courier, pk=courier_id)
+        # Если у курьера есть незавершенные развозы то назначать новый нельзя
+        if not courier.can_take_assign():
+            return None
+        # Пересчитываем максимальный вес, с учетом возможных изменений типа
+        courier.update_allowed_weight()
+        intervals = Interval()
+        intervals.set_working_hours(courier.working_hours)
+        # ищем подходящие заказы, без учета времени
+        orders = Order.objects.filter(
+            weight__lte=courier.allowed_orders_weight,
+            region__in=courier.regions,
+            allow_to_assign=True)
+        if not orders:
+            return None
+        assign = Assign.objects.create(courier=courier)
+        for order in orders:
+            intervals.set_delivery_hours(order.delivery_hours)
+            if intervals.delivery_allowed() and courier.can_take_weight(order):
+                order.assign_order(courier, assign)
+        assign.save()
+        courier.save()
+        return assign
 
     def to_internal_value(self, data):
         extra_field_in_request = any(
@@ -43,8 +58,6 @@ class AssignSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         courier = Courier.objects.get(pk=instance['courier_id'])
         assign = courier.assign.filter(is_complete=False).last()
-        # if instance['courier_id'] == 300:
-        #     print(courier.assign.all())
         if not assign:
             return {'orders': []}
         orders = [{'id': item.pk} for item in
@@ -55,39 +68,10 @@ class AssignSerializer(serializers.ModelSerializer):
             response['assign_time'] = str(assign_time)
         return response
 
-    def save(self, **kwargs):
-        # Получаем курьера, для которого будем назначать заказы
-        courier_id = self.validated_data.get('courier_id')
-        courier = get_object_or_404(Courier, pk=courier_id)
-        # Если у курьера есть незавершенные развозы то назначать новый нельзя
-        non_complete_assigns = courier.assign.filter(is_complete=False)
-        if len(non_complete_assigns) >= 1:
-            return None
-        # Пересчитываем максимальный вес, с учетом возможных изменений типа
-        courier.allowed_orders_weight = courier.get_max_weight(
-            courier.courier_type)
-        intervals = Interval()
-        intervals.set_working_hours(courier.working_hours)
-        # ищем подходящие заказы, без учета времени
-        orders = Order.objects.filter(weight__lte=courier.allowed_orders_weight,
-                                      region__in=courier.regions,
-                                      allow_to_assign=True)
-        if not orders:
-            return None
-        assign = Assign.objects.create(courier=courier)
-        for order in orders:
-            if not courier.allowed_orders_weight:
-                break
-            intervals.set_delivery_hours(order.delivery_hours)
-            if intervals.delivery_allowed() and courier.can_take_weight(order):
-                # назначаем время выдачи заказа
-                order.assign_time = datetime.datetime.now()
-                # уменьшаем доступный вес заказов курьера
-                courier.allowed_orders_weight -= order.weight
-                # помечаем заказ как назначенный
-                order.allow_to_assign = False
-                order.assign_courier = courier
-                assign.orders.add(order)
-                order.save()
-        courier.save()
-        return assign
+    @classmethod
+    def validate_courier_id(self, courier_id):
+        courier = Courier.objects.filter(pk=courier_id).exists()
+        if not courier:
+            raise ValidationError('invalid value courier_id'
+                                  f'({courier_id}) is not exists')
+        return courier_id

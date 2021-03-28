@@ -1,12 +1,10 @@
 import datetime
 
+from api.models import Courier
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-
-from api.models import Courier
-from api.models.couriers import TypeChoices
 
 
 class Order(models.Model):
@@ -19,10 +17,11 @@ class Order(models.Model):
         blank=False,
         db_index=True
     )
-    region = models.PositiveSmallIntegerField(verbose_name='Region',
-                                              db_index=True,
-                                              validators=[MinValueValidator(1)],
-                                              blank=False)
+    region = models.PositiveSmallIntegerField(
+        verbose_name='Region',
+        db_index=True,
+        validators=[MinValueValidator(1)],
+        blank=False)
     delivery_hours = ArrayField(models.CharField(max_length=200),
                                 blank=False)
     assign_courier = models.ForeignKey(
@@ -32,13 +31,6 @@ class Order(models.Model):
         null=True,
         verbose_name='assign_courier',
         related_name='order'
-    )
-    courier_type = models.CharField(
-        max_length=4,
-        choices=TypeChoices.choices,
-        verbose_name='Courier type',
-        blank=True,
-        null=True
     )
     assign_time = models.DateTimeField(
         blank=True,
@@ -63,8 +55,23 @@ class Order(models.Model):
         default=False
     )
 
+    def assign_order(self, courier, assign):
+        """Назначает заказ на доставку"""
+        if not courier.allowed_orders_weight:
+            return None
+        # назначаем время выдачи заказа
+        self.assign_time = datetime.datetime.now()
+        # уменьшаем доступный вес заказов курьера
+        courier.allowed_orders_weight -= self.weight
+        # помечаем заказ как назначенный
+        self.allow_to_assign = False
+        self.assign_courier = courier
+        assign.orders.add(self)
+        assign.courier_type = courier.courier_type
+        self.save()
+
     def cancel_assign(self):
-        # Удаляем заказ из назначенной доставки
+        """Удаляет заказ из назначенной доставки"""
         self.assigns.remove(self.assigns.first())
         self.assign_courier = None
         self.allow_to_assign = True
@@ -78,14 +85,13 @@ class Order(models.Model):
         if not isinstance(self.region, int) or int(self.region) < 1:
             raise ValidationError(f'invalid value in region {self.region}')
         # Проверка времени доставки
-        for period in self.delivery_hours:
-            try:
-                start, end = period.split('-')
-                start = datetime.datetime.strptime(start, "%H:%M")
-                end = datetime.datetime.strptime(end, "%H:%M")
-            except ValueError:
-                raise ValidationError('invalid values in delivery_hours list')
-        super(Order, self).clean(*args, **kwargs)
+        from api.utils import Interval
+        try:
+            for period in self.delivery_hours:
+                Interval.parse_interval(period)
+                super(Order, self).clean(*args, **kwargs)
+        except ValueError:
+            raise ValidationError('invalid values in delivery_hours list')
 
     def save(self, *args, **kwargs):
         self.full_clean()
