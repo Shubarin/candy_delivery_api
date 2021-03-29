@@ -1,31 +1,25 @@
-version: '3.3'
+version: "3.9"
+
 services:
   db:
-    image: library/postgres:11.4-alpine
-    container_name: postgres
-    ports:
-      - "5432:5432"
+    image: postgres
     volumes:
-      - ./pg_data:/var/lib/postgresql/data/pgdata
+      - ./data/db:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_NAME: postgres
-      PGDATA: /var/lib/postgresql/data/pg_data
-    env_file:
-      - .env
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     restart: always
   web:
     build: .
-    ports:
-      - "3000-3005:3000"
-    environment:
-      POSTGRES_HOST: db
-    command: python3 manage.py runserver 0.0.0.0:3000
+    command: python manage.py runserver 0.0.0.0:3000
     volumes:
       - .:/code
-    restart: always
-    links:
+    ports:
+      - "3000-3005:3000"
+    depends_on:
       - db
+    restart: always
   nginx:
     image: library/nginx:1.17
     container_name: nginx
@@ -34,4 +28,4 @@ services:
     links:
       - web
     ports:
-      - "81:81"
+      - "80:80"
